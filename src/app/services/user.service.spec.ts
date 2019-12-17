@@ -1,78 +1,40 @@
-import { TestBed, async } from '@angular/core/testing';
-import { RouterTestingModule } from '@angular/router/testing';
-import { AppComponent } from './app.component';
-import { UserService } from './services/user.service';
-import { of } from 'rxjs';
-import { User } from './models/user.interface';
+import { TestBed, getTestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from  '@angular/common/http/testing';
 
-describe('AppComponent', () => {
+import { UserService } from './user.service';
+import { User } from '../models/user.interface';
 
+describe('UserService', () => {
+  
+  //Tambien podriamos utilizar el inject()
+  let injector: TestBed;
+  
+  //Simular solicitud HTTP
+  let httpMock: HttpTestingController;
 
-  let appComponent;
-  let servicio;
-  //afterAll
-  //afterEach
-  //beforeEach
-  //beforeAll
-
-  beforeAll(()=>{
-    console.log('Se ejecuta al iniciar las pruebas');
-  })
-
-  afterAll(()=>{
-    console.log('Se ejecuta al final las pruebas');
-  })
-
-  beforeEach(async(() => {
+  beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [
-        HttpClientTestingModule
-      ],
-      declarations: [
-        AppComponent
-      ],
-      providers: [
-        UserService,
-        AppComponent
-      ],
-    }).compileComponents();
-    console.log('beforeEach');
-    appComponent = TestBed.get(AppComponent);
-    servicio = TestBed.get(UserService);
-  }));
-
-  afterEach(()=>{
-    console.log('afterEach');
-  })
-
-  it('Debe crear un componente', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.debugElement.componentInstance;
-    expect(app).toBeTruthy();
+      imports:[HttpClientTestingModule]
+    });
+    //Tener acceso a las variables limpias antes de cada it()
+    injector = getTestBed();
+    httpMock = injector.get(HttpTestingController);
   });
 
-  it('El valor de myVar debe ser Hola Mundo', ()=>{
-      const valor = appComponent.myVar;  
-      expect(valor).toEqual('Hola Mundo');  
-  })
+  afterEach(() => {
+    //Verifivamos que no haya solicitudes pendientes
+    httpMock.verify();
+  });
 
-  it('La variable nombre debe contener Camilo',()=>{
-    const valor = appComponent.nombre;
-    expect(valor).toContain('Camilo');
-  })
+  it('Debe ser creado', () => {
+    const service: UserService = TestBed.get(UserService);
+    expect(service).toBeTruthy();
+  });
+  
+  it('Debe retonar un Observable<User[]>', ()=>{
 
-  it('Debe retonar TRUE',()=>{
-    const respuesta = appComponent.par(44);
-    expect(respuesta).toBeTruthy();
-  })
-
-  it('Debe retonar FALSE',()=>{
-    const respuesta = appComponent.par(45);
-    expect(respuesta).toBeFalsy();
-  })
-
-  it('Debe llamar a UserService y el metodo getAll() para obtener los usuarios',()=>{
+    //Instanciamos nuestro servicio
+    const service: UserService = TestBed.get(UserService);
 
     //Mock = Objeto simulado de nuestra respuesta
     let mockUser:User[] = 
@@ -116,15 +78,18 @@ describe('AppComponent', () => {
       type: "User",
       site_admin: false
     }]
-
-    const users = spyOn(servicio, 'getAll').and.callFake( users =>{
-      return of(mockUser);
-    })
-
-    appComponent.ngOnInit();
     
-    expect(users).toHaveBeenCalled(); 
-
+    //Nos suscribimos al metodo getAll()
+    service.getAll().subscribe((users)=>{
+      expect(users.length).toBe(2);
+      expect(users).toEqual(mockUser);
+      expect(users[0].login).toBeDefined();
+    })
+    
+    //Validamos la url de nuestra API
+    const req = httpMock.expectOne('https://api.github.com/users');
+    expect(req.request.method).toBe('GET');//Validamos que sea un metodo GET
+    req.flush(mockUser); //Proporcionar valores ficticios como respuesta de nuestras peticiones
   })
 
 });
